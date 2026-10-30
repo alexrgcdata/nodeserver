@@ -1,118 +1,79 @@
 # nodeServer
 
-A small JavaScript action server, using Node's built-in HTTP server and test
-runner. It implements the basic Go server contract in its own independent
-repository. There are no third-party dependencies or build step.
+A small Node.js API server that checks a bearer token, routes a JSON request to
+a registered function, and sends back a consistent response.
 
-## Run locally
+I built this alongside my [Go server](https://github.com/alexrgcdata/goFM-Server)
+to work through the same idea in JavaScript: give a client one place to call,
+authenticate the request, then let a named function do the work. The four demo
+functions are simple on purpose. The interesting part is what happens around
+them: checking input, keeping credentials private, handling bad requests, and
+making the next function easy to add.
 
-Use Node.js 24 or newer. This version was checked on Windows with Node v24.14.0.
-In PowerShell:
+## How it works
 
-```powershell
-Set-Location C:\AlexSeidler\projects\nodeServer
+```text
+Client -> POST /api -> check token -> validate JSON -> find action -> return JSON
+```
+
+The client sends an action name and an array of parameters. The server looks up
+that name in a small, explicit list of allowed functions. It never treats a
+request as code to execute or a URL to forward somewhere else.
+
+For example, this request calls `echo`:
+
+```json
+{ "action": "echo", "params": ["hello", 42, true, { "name": "Alex" }] }
+```
+
+The response includes that array as `result`, plus a success flag, an error field,
+a request ID, and the server's timestamp. `hello`, `success`, and `boolean` are
+the other demo actions. Booleans come back as booleans, objects as objects.
+
+I used Node's built-in HTTP server, crypto utilities, and test runner. There are
+no third-party packages, database, or build step. At this size, being able to
+follow a request through a few files matters more to me than adding a framework.
+
+## Try it locally
+
+You'll need **Node.js 24 or newer**. From the project folder:
+
+```sh
 npm run setup
 npm test
 npm run demo
 npm start
 ```
 
-Setup creates `config.local.json` with a random 256-bit bearer token. It never
-prints the token or overwrites an existing file. This private file is ignored by
-Git; keep it private when copying the project. File permissions on Windows follow
-the containing folder's Windows permissions.
+Setup creates an ignored `config.local.json` with a random token. It keeps an
+existing config and never prints the token. The demo starts a temporary local
+server, calls all four actions, checks that a missing token gets rejected, and
+shuts itself down. You can see the whole flow without copying credentials.
 
-The server defaults to `http://127.0.0.1:8080`. Open
-`http://127.0.0.1:8080/health` to check it. Stop it with Ctrl+C. Shutdown allows
-active requests up to five seconds to finish, then closes remaining connections.
-The demo starts its own temporary listener on an available loopback port, sends
-real requests using the private config, checks results, and stops itself.
+`npm start` keeps the server running at `http://127.0.0.1:8080` by default.
+Open `/health` to check it; Ctrl+C stops it. If that port is busy, change `port`
+in your private config. [The API guide](docs/API.md) covers configuration, the
+full response format, and making your own requests.
 
-This checkout's private config uses port **8787**, because 8080 was occupied
-during verification. Its health URL is `http://127.0.0.1:8787/health`.
+## A quick look through the code
 
-Edit `host`, `port`, or `maxRequestBytes` in the private config if needed. Port `0`
-chooses an available port and prints its address on startup. The default body
-limit is 65,536 bytes; configuration accepts 1 byte through 1 MiB. Keep the
-loopback default for this local version. Remote hosting, TLS and deployment have
-not been configured or tested.
+- [server.js](src/server.js) handles HTTP, authentication, and input checks.
+- [actions.js](src/actions.js) lists the functions a client is allowed to call.
+- [functions.js](src/functions.js) contains those functions and their parameter checks.
+- [server.test.js](test/server.test.js) tests requests over real local HTTP sockets.
 
-## Request and response
+To add an action, write its function, register its name, and test its parameters
+and result. The HTTP handling can stay where it is.
 
-`GET /health` is public and returns `"ok"` in the normal response envelope.
-`POST /api` requires `Authorization: Bearer <your private token>` and
-`Content-Type: application/json` (optionally `charset=utf-8`). Authentication
-happens before method checks, JSON reading, or action dispatch on `/api`.
+## Where this stands
 
-```json
-{
-  "action": "echo",
-  "params": ["hello", 42, true, null, { "nested": [1, 2] }],
-  "time": "2026-10-30T12:00:00Z"
-}
-```
+This is a working local starter with automated tests for authentication, malformed
+requests, body limits, timeouts, and the four actions. GitHub Actions runs those
+tests on Windows and Linux. There's no login or user account system yet: a
+private, shared bearer token is the authentication boundary.
 
-`action` is a registered name of 1-64 characters. `params` is always required and
-must be an array, including `[]` for an action with no parameters. `time` is
-optional client metadata: omit it or provide an RFC3339 date and time with a
-timezone. Empty strings, null, impossible dates and leap seconds are rejected.
-Extra envelope fields and multiple JSON values are rejected. Bodies must be
-uncompressed UTF-8 JSON.
-
-| Action | Params | Result |
-| --- | --- | --- |
-| `hello` | `[]` | `"hello world"` |
-| `success` | `[]` | `"successful"` |
-| `boolean` | `[]` | `true` |
-| `echo` | Any JSON array | The same array |
-
-Every application response contains these five fields; `time` always comes from
-the server in UTC, regardless of the client's timestamp:
-
-```json
-{
-  "success": true,
-  "result": true,
-  "error": null,
-  "request_id": "dc2c8527-55e7-4af4-8c3a-d71dd2b67598",
-  "time": "2026-10-30T17:00:00.000Z"
-}
-```
-
-Errors use `success: false`, `result: null`, and
-`error: { "code": "invalid_params", "message": "..." }`. Statuses include 400 for
-invalid JSON, envelopes, times or action parameters; 401 for missing/invalid
-tokens; 404 for unknown routes/actions; 405 for methods; 408 for a slow body;
-413 for oversized bodies; 415 for content type/encoding; and a generic 500 for
-unexpected failures. Low-level malformed HTTP and header timeouts may receive
-Node's own HTTP errors rather than the JSON application envelope.
-
-Headers and body reads have time limits; body handling has a ten-second total
-deadline, sockets have a fifteen-second inactivity timeout, and keep-alive lasts
-five seconds. Unauthorized and oversized requests close the connection when
-their bodies are unread. Internal errors, request bodies and tokens are not
-logged. The token is compared using fixed-size hashes and a timing-safe compare.
-
-JSON strings, booleans, null, objects and arrays keep their types. JavaScript
-numbers use standard double precision: pass large integer identifiers as strings
-when exact values beyond `Number.MAX_SAFE_INTEGER` matter.
-
-## Code and future additions
-
-- `src/main.js`: load config, listen, and handle shutdown signals.
-- `src/server.js`: HTTP routes, authentication, bounded body reads and validation.
-- `src/actions.js`: the commented action allow-list.
-- `src/functions.js`: the actual demo functions and safe parameter errors.
-- `src/config.js`: private config loading and validation.
-- `test/server.test.js`: automated checks using real local HTTP sockets.
-
-To add an action, implement a function in `functions.js`, validate its parameters,
-register it in `actions.js`, and add tests. Throw `ParamsError` only for messages
-safe to show callers. Future asynchronous actions should add cancellation and
-their own upstream deadlines; HTTP deadlines cannot interrupt CPU-bound work.
-FileMaker, a database, AI tools, and a browser playground are possible later
-additions. This version only dispatches the four local demo functions.
-
-The repository is ready for Alex to connect to a GitHub repository once he has
-created it and supplied its URL. No remote, push, deployment or hosting change is
-part of this local implementation.
+It isn't hosted on my portfolio's shared hosting, which can't run this Node
+service. Running it publicly would need a suitable Node host and HTTPS, along
+with decisions about user access and rate limiting. FileMaker integration and
+a browser client would be separate additions. For now, this repo is the small
+server you can read, run, and extend.

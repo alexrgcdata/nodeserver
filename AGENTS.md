@@ -25,7 +25,8 @@ sufficient; no database, framework, or TypeScript build is required for this dem
 - Include focused tests using Node's built-in test runner, a live local demo,
   and short run instructions. Commit distinct working changes often.
 
-GitHub: Alex will create a new repository. Do not create one, add a guessed
-remote, push, deploy, or change hosting. Keep all credentials private and ignored.
+GitHub: https://github.com/alexrgcdata/nodeserver. Alex supplied this repository
+and authorized connecting and publishing this local project on October 30, 2026.
+Do not deploy or change hosting. Keep all credentials private and ignored.
 The Go reference may be read selectively but must not be edited or copied whole.
 React playground and FileMaker integrations are later work, not this first task.
