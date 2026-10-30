@@ -68,8 +68,8 @@ and result. The HTTP handling can stay where it is.
 ## Where this stands
 
 This is a working local starter with automated tests for authentication, malformed
-requests, body limits, timeouts, and the four actions. GitHub Actions runs those
-tests on Windows and Linux. There's no login or user account system yet: a
+requests, body limits, timeouts, and the four actions. A GitHub Actions workflow
+is configured to run those tests on Windows and Linux. There's no login or user account system yet: a
 private, shared bearer token is the authentication boundary.
 
 It isn't hosted on my portfolio's shared hosting, which can't run this Node
