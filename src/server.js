@@ -75,8 +75,16 @@ export function createServer(config) {
         chunks.push(chunk);
       }
       let input;
-      try { input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); }
-      catch { return reply(400, null, 'invalid_json', 'provide exactly one valid UTF-8 JSON object'); }
+      try {
+        input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)), (_key, value) => {
+          // JSON accepts 1e400, but JavaScript turns it into Infinity and would
+          // silently serialize it as null. Reject overflow at any nesting depth.
+          if (typeof value === 'number' && !Number.isFinite(value)) throw new Error('numeric overflow');
+          return value;
+        });
+      } catch {
+        return reply(400, null, 'invalid_json', 'provide exactly one valid UTF-8 JSON object with finite numbers');
+      }
       if (!input || typeof input !== 'object' || Array.isArray(input)
         || Object.keys(input).some((key) => !['action', 'params', 'time'].includes(key))
         || typeof input.action !== 'string' || input.action.length < 1 || input.action.length > 64

@@ -126,6 +126,18 @@ test('requires UTF-8 JSON, rejects compressed content and malformed UTF-8', asyn
     body: '{"action":"hello","params":[]}' })).status, 200);
 });
 
+test('numeric overflow is rejected instead of changing an echo value to null', async () => {
+  for (const params of ['[1e400]', '[-1e400]', '[{"nested":[1e400]}]']) {
+    const response = await request({ body: `{"action":"echo","params":${params}}` });
+    assert.equal(response.status, 400);
+    assert.equal(response.data.error.code, 'invalid_json');
+    checkEnvelope(response);
+  }
+  const response = await request({ body: '{"action":"echo","params":[1e308,"9007199254740993"]}' });
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.data.result, [1e308, '9007199254740993']);
+});
+
 test('bounds bodies both with Content-Length and chunked encoding', async () => {
   for (const chunked of [false, true]) {
     const response = await request({ body: 'x'.repeat(513), chunked });

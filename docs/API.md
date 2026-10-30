@@ -71,7 +71,16 @@ Unknown envelope fields and multiple JSON values are rejected.
 Strings, booleans, null, arrays, and objects retain their JSON types. JavaScript
 uses double-precision numbers. Send large integer identifiers as strings when
 exact values beyond `Number.MAX_SAFE_INTEGER` matter; this differs from the Go
-version's raw JSON echo.
+version's raw JSON echo. Numeric overflow such as `1e400`, including nested
+values, receives HTTP 400 rather than silently becoming null.
+
+The four action names and response fields match the Go dispatcher, but the
+implementations aren't byte-for-byte interchangeable. Node generates UUID
+request IDs and millisecond timestamps, uses its own config field names and
+token format, and validates UTF-8 and timestamps more strictly. For example,
+Node rejects an explicitly empty or null `time`; Go currently treats those as
+omitted. Error codes for some malformed envelopes can differ. For shared
+clients, omit `time` when unused and rely on the documented fields and statuses.
 
 ## Responses and errors
 

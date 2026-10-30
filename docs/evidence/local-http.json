@@ -1,0 +1,163 @@
+{
+  "captured_at": "2026-10-30T23:03:49.738Z",
+  "runtime": "v24.14.0",
+  "scope": "Actual local HTTP requests with synthetic values. Authorization values are omitted.",
+  "cases": [
+    {
+      "name": "public health",
+      "request": {
+        "method": "GET",
+        "path": "/health",
+        "authentication": "none"
+      },
+      "response": {
+        "status": 200,
+        "request_id_header": "921b83b3-ab1e-4acb-bd34-744f63142c38",
+        "body": {
+          "success": true,
+          "result": "ok",
+          "error": null,
+          "request_id": "921b83b3-ab1e-4acb-bd34-744f63142c38",
+          "time": "2026-10-30T23:03:49.748Z"
+        }
+      }
+    },
+    {
+      "name": "hello",
+      "request": {
+        "method": "POST",
+        "path": "/api",
+        "authentication": "valid private bearer token; value omitted",
+        "body": "{\"action\":\"hello\",\"params\":[]}"
+      },
+      "response": {
+        "status": 200,
+        "request_id_header": "78db1d40-5370-4738-8a98-4ad06b38c066",
+        "body": {
+          "success": true,
+          "result": "hello world",
+          "error": null,
+          "request_id": "78db1d40-5370-4738-8a98-4ad06b38c066",
+          "time": "2026-10-30T23:03:49.758Z"
+        }
+      }
+    },
+    {
+      "name": "success",
+      "request": {
+        "method": "POST",
+        "path": "/api",
+        "authentication": "valid private bearer token; value omitted",
+        "body": "{\"action\":\"success\",\"params\":[]}"
+      },
+      "response": {
+        "status": 200,
+        "request_id_header": "721c07c9-17d0-4dad-b5c6-716972b986fb",
+        "body": {
+          "success": true,
+          "result": "successful",
+          "error": null,
+          "request_id": "721c07c9-17d0-4dad-b5c6-716972b986fb",
+          "time": "2026-10-30T23:03:49.761Z"
+        }
+      }
+    },
+    {
+      "name": "boolean",
+      "request": {
+        "method": "POST",
+        "path": "/api",
+        "authentication": "valid private bearer token; value omitted",
+        "body": "{\"action\":\"boolean\",\"params\":[]}"
+      },
+      "response": {
+        "status": 200,
+        "request_id_header": "d22ca591-20fe-4965-8c8a-9bce50da9231",
+        "body": {
+          "success": true,
+          "result": true,
+          "error": null,
+          "request_id": "d22ca591-20fe-4965-8c8a-9bce50da9231",
+          "time": "2026-10-30T23:03:49.763Z"
+        }
+      }
+    },
+    {
+      "name": "echo",
+      "request": {
+        "method": "POST",
+        "path": "/api",
+        "authentication": "valid private bearer token; value omitted",
+        "body": "{\"action\":\"echo\",\"params\":[\"hello\",42,true,null,{\"nested\":[1,2]}]}"
+      },
+      "response": {
+        "status": 200,
+        "request_id_header": "710f246c-9115-4f9f-966d-ac3080cf7356",
+        "body": {
+          "success": true,
+          "result": [
+            "hello",
+            42,
+            true,
+            null,
+            {
+              "nested": [
+                1,
+                2
+              ]
+            }
+          ],
+          "error": null,
+          "request_id": "710f246c-9115-4f9f-966d-ac3080cf7356",
+          "time": "2026-10-30T23:03:49.765Z"
+        }
+      }
+    },
+    {
+      "name": "authentication before parsing",
+      "request": {
+        "method": "POST",
+        "path": "/api",
+        "authentication": "none",
+        "body": "{broken"
+      },
+      "response": {
+        "status": 401,
+        "request_id_header": "353d1a56-c4ba-47ff-93f0-19f83ee54839",
+        "body": {
+          "success": false,
+          "result": null,
+          "error": {
+            "code": "unauthorized",
+            "message": "a valid bearer token is required"
+          },
+          "request_id": "353d1a56-c4ba-47ff-93f0-19f83ee54839",
+          "time": "2026-10-30T23:03:49.767Z"
+        }
+      }
+    },
+    {
+      "name": "numeric overflow",
+      "request": {
+        "method": "POST",
+        "path": "/api",
+        "authentication": "valid private bearer token; value omitted",
+        "body": "{\"action\":\"echo\",\"params\":[1e400]}"
+      },
+      "response": {
+        "status": 400,
+        "request_id_header": "4a70ba47-ac7d-43eb-a73f-dc078b315d9d",
+        "body": {
+          "success": false,
+          "result": null,
+          "error": {
+            "code": "invalid_json",
+            "message": "provide exactly one valid UTF-8 JSON object with finite numbers"
+          },
+          "request_id": "4a70ba47-ac7d-43eb-a73f-dc078b315d9d",
+          "time": "2026-10-30T23:03:49.768Z"
+        }
+      }
+    }
+  ]
+}

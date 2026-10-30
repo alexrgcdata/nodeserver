@@ -36,9 +36,11 @@ follow a request through a few files matters more to me than adding a framework.
 
 ## Try it locally
 
-You'll need **Node.js 24 or newer**. From the project folder:
+You'll need **Node.js 24 or newer** and Git. To get the source and try it:
 
 ```sh
+git clone https://github.com/alexrgcdata/nodeserver.git
+cd nodeserver
 npm run setup
 npm test
 npm run demo
@@ -69,8 +71,8 @@ and result. The HTTP handling can stay where it is.
 
 This is a working local starter with automated tests for authentication, malformed
 requests, body limits, timeouts, and the four actions. A GitHub Actions workflow
-is configured to run those tests on Windows and Linux. There's no login or user account system yet: a
-private, shared bearer token is the authentication boundary.
+is configured to run those tests on Windows and Linux. There's no login or user
+account system yet: a private, shared bearer token is the authentication boundary.
 
 It isn't hosted on my portfolio's shared hosting, which can't run this Node
 service. Running it publicly would need a suitable Node host and HTTPS, along
