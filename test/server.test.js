@@ -146,6 +146,23 @@ test('configuration fails closed and timeouts are bounded', () => {
   assert.equal(server.keepAliveTimeout, 5000);
 });
 
+test('an unfinished request body receives 408 within its deadline', { timeout: 13000 }, async () => {
+  const response = await new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path: '/api', method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Content-Length': '100' } }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => { req.destroy(); resolve({ status: res.statusCode, data: JSON.parse(body) }); });
+    });
+    req.on('error', reject);
+    // Deliberately never finish the advertised body.
+    req.write('{');
+  });
+  assert.equal(response.status, 408);
+  assert.equal(response.data.error.code, 'request_timeout');
+  assert.equal((await request({ path: '/health', method: 'GET' })).status, 200);
+});
+
 test('timestamp validation checks leap years, calendar and timezone', () => {
   for (const time of ['2024-02-29T23:59:59.123456789Z', '2026-01-01t00:00:00z', '2026-01-01T00:00:00-05:00']) {
     assert.ok(validTime(time), time);
