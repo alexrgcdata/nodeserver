@@ -128,5 +128,9 @@ to show callers. Unexpected exceptions produce a generic 500 response.
 
 Future asynchronous actions need cancellation and their own upstream deadlines.
 HTTP timers cannot interrupt CPU-bound JavaScript. Public deployment would also
-need a Node-capable host, HTTPS, and an access/rate-limiting policy. No hosting or
-external integration is configured by this project.
+need HTTPS and an access/rate-limiting policy. Alex's Namecheap cPanel includes
+Setup Node.js App, which is described in the
+[Namecheap guide](https://www.namecheap.com/support/knowledgebase/article.aspx/10047/2182/how-to-work-with-nodejs-app/).
+This project isn't deployed yet. Compatibility with the account's available
+Node version, application startup setup, and resource limits still needs
+checking. No hosting or external integration is configured by this project.

@@ -81,8 +81,10 @@ downloads, source control, and upload folders. Tokens are not browser assets.
 This is a working local API starter, not a hosted service or user account
 system. There is no public API URL, deployment, TLS setup, FileMaker connection,
 database, proxy, browser dashboard, per-user identity, token expiry, or rate
-limiting. The portfolio's shared host cannot run this Node process. Public
-deployment would need a Node-capable host, HTTPS, and an access policy.
+limiting. Alex's Namecheap cPanel includes Setup Node.js App. Compatibility with
+the account's available Node version, application startup setup, and resource
+limits still needs checking; this project has not been deployed or verified
+there. Public use would also need HTTPS and an access policy.
 
 The server accepts only registered local functions. It doesn't execute client
 code or commands, or forward to caller-selected destinations. Future network

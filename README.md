@@ -74,8 +74,9 @@ requests, body limits, timeouts, and the four actions. A GitHub Actions workflow
 is configured to run those tests on Windows and Linux. There's no login or user
 account system yet: a private, shared bearer token is the authentication boundary.
 
-It isn't hosted on my portfolio's shared hosting, which can't run this Node
-service. Running it publicly would need a suitable Node host and HTTPS, along
-with decisions about user access and rate limiting. FileMaker integration and
-a browser client would be separate additions. For now, this repo is the small
-server you can read, run, and extend.
+This project isn't deployed yet. My Namecheap cPanel includes Setup Node.js App,
+but compatibility with the account's available Node version, application startup
+setup, and resource limits still needs checking. Public use would also need
+HTTPS and decisions about user access and rate limiting. FileMaker integration
+and a browser client would be separate additions. For now, this repo is the
+small server you can read, run, and extend.

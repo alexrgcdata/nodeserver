@@ -74,9 +74,12 @@ listener. Ctrl+C stops `npm start`. Run `npm test` when verifying code changes.
 
 There is no public service URL, hosting deployment, TLS setup, FileMaker
 connection, database, browser dashboard, proxy, user account system, per-user
-permissions, token expiry, or rate limiting. The portfolio's shared host cannot
-run this Node process. JavaScript numbers have the precision limits described
-in the API guide; the Node and Go implementations aren't byte-identical.
+permissions, token expiry, or rate limiting. Alex's Namecheap cPanel includes
+Setup Node.js App, but compatibility with the account's available Node version,
+application startup setup, and resource limits still needs checking. This
+project has not been deployed or verified there. JavaScript numbers have the
+precision limits described in the API guide; the Node and Go implementations
+aren't byte-identical.
 
 No further product implementation is required for this starter. PROJECT MANAGER
 can use the README, receipt, and safe captures to finish the portfolio section.
