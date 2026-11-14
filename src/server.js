@@ -5,13 +5,21 @@ import { actions } from './actions.js';
 import { ParamsError } from './functions.js';
 import { validateConfig } from './config.js';
 
-const hash = (value) => createHash('sha256').update(value).digest();
+function hash(value) {
+  return createHash('sha256').update(value).digest();
+}
 
 // Require a real calendar date and an explicit RFC3339 timezone.
 export function validTime(value) {
-  if (typeof value !== 'string') return false;
+  if (typeof value !== 'string') {
+    return false;
+  }
+
   const parts = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/.exec(value);
-  if (!parts) return false;
+  if (!parts) {
+    return false;
+  }
+
   const [, year, month, day, hour, minute, second, , offsetHour = '0', offsetMinute = '0'] = parts;
   const leap = +year % 4 === 0 && (+year % 100 !== 0 || +year % 400 === 0);
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -27,15 +35,33 @@ export function createServer(config) {
     res.setHeader('X-Request-ID', requestId);
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    const reply = (status, result = null, code = null, message = null) => {
-      if (res.writableEnded || res.destroyed) return;
+
+    function reply(status, result = null, code = null, message = null) {
+      if (res.writableEnded || res.destroyed) {
+        return;
+      }
+
+      let error = null;
+      if (code) {
+        error = { code, message };
+      }
+
+      const response = {
+        success: status < 400,
+        result,
+        error,
+        request_id: requestId,
+        time: new Date().toISOString(),
+      };
       // Close after early rejection instead of consuming an unbounded unread body.
       if (!req.complete) res.setHeader('Connection', 'close');
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ success: status < 400, result,
-        error: code ? { code, message } : null, request_id: requestId, time: new Date().toISOString() }));
-    };
-    const deadline = setTimeout(() => reply(408, null, 'request_timeout', 'request body took too long'), 10000);
+      res.end(JSON.stringify(response));
+    }
+
+    const deadline = setTimeout(() => {
+      reply(408, null, 'request_timeout', 'request body took too long');
+    }, 10000);
     res.once('close', () => clearTimeout(deadline));
     try {
       // HTTP routes: health is public; every /api method authenticates first.
@@ -47,9 +73,16 @@ export function createServer(config) {
         }
         return reply(200, 'ok');
       }
-      if (path !== '/api') return reply(404, null, 'not_found', 'route not found');
+      if (path !== '/api') {
+        return reply(404, null, 'not_found', 'route not found');
+      }
+
+      // Reject duplicate authorization headers and compare fixed-length hashes.
       const authorization = req.headersDistinct.authorization;
-      const match = authorization?.length === 1 && /^Bearer ([A-Za-z0-9_-]+)$/i.exec(authorization[0]);
+      let match = null;
+      if (authorization?.length === 1) {
+        match = /^Bearer ([A-Za-z0-9_-]+)$/i.exec(authorization[0]);
+      }
       if (!match || !timingSafeEqual(hash(match[1]), tokenHash)) {
         res.setHeader('WWW-Authenticate', 'Bearer realm="nodeServer"');
         return reply(401, null, 'unauthorized', 'a valid bearer token is required');
@@ -64,16 +97,28 @@ export function createServer(config) {
       if (req.headers['content-encoding'] && req.headers['content-encoding'] !== 'identity') {
         return reply(415, null, 'unsupported_encoding', 'send uncompressed JSON');
       }
-      const tooLarge = () => reply(413, null, 'request_too_large', 'request body exceeds the configured limit');
-      if (Number(req.headers['content-length']) > settings.maxRequestBytes) return tooLarge();
+
+      function rejectLargeBody() {
+        return reply(413, null, 'request_too_large', 'request body exceeds the configured limit');
+      }
+
+      // A declared length can reject early. Count actual bytes for streamed bodies.
+      if (Number(req.headers['content-length']) > settings.maxRequestBytes) {
+        return rejectLargeBody();
+      }
       const chunks = [];
       let size = 0;
       for await (const chunk of req) {
-        if (res.writableEnded) return;
+        if (res.writableEnded) {
+          return;
+        }
         size += chunk.length;
-        if (size > settings.maxRequestBytes) return tooLarge();
+        if (size > settings.maxRequestBytes) {
+          return rejectLargeBody();
+        }
         chunks.push(chunk);
       }
+
       let input;
       try {
         input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)), (_key, value) => {
@@ -94,13 +139,23 @@ export function createServer(config) {
       if (Object.hasOwn(input, 'time') && !validTime(input.time)) {
         return reply(400, null, 'invalid_time', 'time must be an RFC3339 timestamp');
       }
-      const action = actions.get(input.action);
-      if (!action) return reply(404, null, 'unknown_action', 'action is not registered');
-      const result = await action(input.params);
+
+      // Only names registered in actions.js can reach application code.
+      const handleAction = actions.get(input.action);
+      if (!handleAction) {
+        return reply(404, null, 'unknown_action', 'action is not registered');
+      }
+
+      const result = await handleAction(input.params);
       reply(200, result);
     } catch (error) {
-      if (error instanceof ParamsError) reply(400, null, 'invalid_params', error.message);
-      else reply(500, null, 'action_failed', 'the request could not be completed');
+      // Parameter errors are written for callers. Unexpected errors stay private.
+      if (error instanceof ParamsError) {
+        reply(400, null, 'invalid_params', error.message);
+        return;
+      }
+
+      reply(500, null, 'action_failed', 'the request could not be completed');
     }
   });
   server.headersTimeout = 10000;
