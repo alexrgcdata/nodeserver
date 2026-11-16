@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { TextDecoder } from 'node:util';
+import { performance } from 'node:perf_hooks';
 import { actions } from './actions.js';
 import { ParamsError } from './functions.js';
 import { validateConfig } from './config.js';
@@ -30,11 +31,29 @@ export function validTime(value) {
 export function createServer(config) {
   const settings = validateConfig(config);
   const tokenHash = hash(settings.token);
+  const started = performance.now();
+  let requests = 0;
+  let errors = 0;
+  let totalResponseMs = 0;
+
   const server = http.createServer(async (req, res) => {
+    const path = req.url.split('?')[0];
+    const requestStarted = performance.now();
     const requestId = randomUUID();
     res.setHeader('X-Request-ID', requestId);
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    // Count completed API responses only. Health and dashboard reads stay out.
+    if (path === '/api') {
+      res.once('finish', () => {
+        requests += 1;
+        totalResponseMs += performance.now() - requestStarted;
+        if (res.statusCode >= 400) {
+          errors += 1;
+        }
+      });
+    }
 
     function reply(status, result = null, code = null, message = null) {
       if (res.writableEnded || res.destroyed) {
@@ -64,8 +83,7 @@ export function createServer(config) {
     }, 10000);
     res.once('close', () => clearTimeout(deadline));
     try {
-      // HTTP routes: health is public; every /api method authenticates first.
-      const path = req.url.split('?')[0];
+      // Health is public. Actions and metrics use the same token check.
       if (path === '/health') {
         if (req.method !== 'GET') {
           res.setHeader('Allow', 'GET');
@@ -73,7 +91,7 @@ export function createServer(config) {
         }
         return reply(200, 'ok');
       }
-      if (path !== '/api') {
+      if (path !== '/api' && path !== '/admin/metrics') {
         return reply(404, null, 'not_found', 'route not found');
       }
 
@@ -87,6 +105,25 @@ export function createServer(config) {
         res.setHeader('WWW-Authenticate', 'Bearer realm="nodeServer"');
         return reply(401, null, 'unauthorized', 'a valid bearer token is required');
       }
+      if (path === '/admin/metrics') {
+        if (req.method !== 'GET') {
+          res.setHeader('Allow', 'GET');
+          return reply(405, null, 'method_not_allowed', 'use GET');
+        }
+
+        let averageResponseMs = 0;
+        if (requests > 0) {
+          averageResponseMs = totalResponseMs / requests;
+        }
+
+        return reply(200, {
+          uptime_seconds: Math.floor((performance.now() - started) / 1000),
+          requests,
+          errors,
+          average_response_ms: averageResponseMs,
+        });
+      }
+
       if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
         return reply(405, null, 'method_not_allowed', 'use POST');

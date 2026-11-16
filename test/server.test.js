@@ -42,6 +42,23 @@ function checkEnvelope(response) {
   assert.equal(response.headers['x-content-type-options'], 'nosniff');
 }
 
+test('metrics require a token and count API responses only', async () => {
+  const metrics = { path: '/admin/metrics', method: 'GET' };
+  const before = await request(metrics);
+  const denied = await request({ ...metrics, headers: { Authorization: '' } });
+  assert.equal(denied.status, 401);
+  assert.equal((await request({ path: '/health', method: 'GET' })).status, 200);
+  assert.equal((await request({ body: '{"action":"hello","params":[]}' })).status, 200);
+  assert.equal((await request({ body: '{' })).status, 400);
+
+  const after = await request(metrics);
+  assert.equal(after.status, 200);
+  assert.equal(after.data.result.requests, before.data.result.requests + 2);
+  assert.equal(after.data.result.errors, before.data.result.errors + 1);
+  assert.ok(after.data.result.uptime_seconds >= 0);
+  assert.ok(after.data.result.average_response_ms >= 0);
+});
+
 test('health is public and returns a consistent envelope', async () => {
   const response = await request({ path: '/health', method: 'GET', headers: { Authorization: '' } });
   assert.equal(response.status, 200);

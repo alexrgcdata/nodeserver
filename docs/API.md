@@ -1,5 +1,13 @@
 # Using the API
 
+## Metrics
+
+`GET /admin/metrics` uses the same bearer token as `/api`. The response's
+`result` contains `uptime_seconds`, `requests`, `errors`, and
+`average_response_ms`. Counts include completed `/api` responses only. An
+error is an HTTP status of 400 or higher. The counters live in memory and
+reset when the server restarts.
+
 ## Local configuration
 
 Run `npm run setup` once. It creates `config.local.json` beside `package.json`
